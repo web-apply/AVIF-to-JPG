@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AVIF to JPG Converter</title>
+</head>
+<body>
+    <input type="file" id="avifInput" accept=".avif">
+    <a id="downloadLink" style="display: none;">Download JPG</a>
+
+    <script>
+        // Check for AVIF support
+        async function isAVIFSupported() {
+            try {
+                await createImageBitmap(new Blob([''], { type: 'image/avif' }));
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function convertAVIFtoJPG(avifFile) {
+            const avifSupport = await isAVIFSupported();
+            let imageBitmap;
+
+            if (avifSupport) {
+                // Native decoding
+                imageBitmap = await createImageBitmap(avifFile);
+            } else {
+                // Fallback using library (jsquash)
+                const { AVIF } = await import('https://cdn.jsdelivr.net/npm/@jsquash/avif@1.0.0/+esm');
+                const avifData = new Uint8Array(await avifFile.arrayBuffer());
+                const imageData = await AVIF.decode(avifData);
+                
+                // Create ImageBitmap from ImageData
+                imageBitmap = await createImageBitmap(imageData);
+            }
+
+            // Create canvas for conversion
+            const canvas = document.createElement('canvas');
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0);
+
+            // Convert to JPG
+            const jpgUrl = canvas.toDataURL('image/jpeg', 0.85); // 0.85 = quality
+
+            // Create download link
+            const downloadLink = document.getElementById('downloadLink');
+            downloadLink.href = jpgUrl;
+            downloadLink.download = 'converted.jpg';
+            downloadLink.style.display = 'block';
+        }
+
+        // Handle file input
+        document.getElementById('avifInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'image/avif') {
+                await convertAVIFtoJPG(file);
+            }
+        });
+    </script>
+</body>
+</html>
